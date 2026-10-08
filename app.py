@@ -1,6 +1,6 @@
 """臺北 YouBike 空站觀察：115-1 地理資訊系統運用程式的 App 範本。
 
-執行方式：在終端機輸入 solara run app.py
+執行方式：在終端機輸入 solara run app.py @@@@@
 """
 
 from pathlib import Path
