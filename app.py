@@ -15,6 +15,7 @@ import leafmap.leafmap as leafmap  # ipyleaflet 後端：Solara 原生支援的 
 import pandas as pd
 import plotly.express as px
 import solara
+import solara.server.settings
 
 DATA_PATH = Path(__file__).parent / "data" / "youbike_sample.csv"
 
@@ -36,6 +37,11 @@ df = df[df["act"] == "1"]  # 只看營運中的站
 底圖網址 = "https://wmts.nlsc.gov.tw/wmts/EMAP/default/GoogleMapsCompatible/{z}/{y}/{x}"
 底圖出處 = "臺灣通用電子地圖 © 內政部國土測繪中心"
 
+# 手機版面的 CSS 放在 assets/custom.css（說明寫在該檔案裡）。
+# 用 solara run app.py 執行時，Solara 預設不會到 app.py 旁邊的 assets 資料夾找檔案，
+# 所以要把這個資料夾加進 Solara 的素材路徑，custom.css 才會在網頁一開始載入時生效。
+solara.server.settings.assets.extra_locations.append(str(Path(__file__).parent / "assets"))
+
 # 可借車數分級：(下限, 上限, 圖例文字, 顏色)。顏色取自 viridis，色盲也分得出深淺。
 分級 = [
     (0, 0, "0 輛（空站）", "#440154"),
@@ -50,7 +56,8 @@ def 各區空站比例(資料, 門檻值):
     資料 = 資料.assign(空站=資料["available_rent_bikes"] <= 門檻值)
     表 = 資料.groupby("sarea").agg(站數=("sno", "size"), 空站數=("空站", "sum"))
     表["空站比例"] = (表["空站數"] / 表["站數"]).round(3)
-    return 表.sort_values("空站比例", ascending=False).reset_index()
+    表 = 表.sort_values("空站比例", ascending=False).reset_index()
+    return 表.rename(columns={"sarea": "行政區"})  # 表格欄名顯示中文
 
 
 def 單區各時段(資料, 區, 門檻值):
@@ -170,9 +177,9 @@ def Page():
                 圖 = px.bar(
                     表,
                     x="空站比例",
-                    y="sarea",
+                    y="行政區",
                     orientation="h",
-                    labels={"sarea": "", "空站比例": "空站比例"},
+                    labels={"行政區": "", "空站比例": "空站比例"},
                 )
                 # 每區給 30 px 高度，行政區名稱才不會被 Plotly 自動隔行省略；換成區數更多的縣市也適用。
                 圖.update_layout(

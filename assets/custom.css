@@ -1,0 +1,31 @@
+/*
+ * 手機版面修正。Solara 會自動把專案根目錄的 assets/custom.css 放進網頁的 <head>，
+ * 在任何圖表畫出來之前就生效。（寫在 app.py 的 solara.Style 太晚生效，Plotly 圖會先用 700 px 畫好。）
+ */
+
+/*
+ * 1. Solara 的版面是一層層的 flex 容器，預設不會縮得比內容窄。
+ *    Plotly 圖一開始量不到寬度，會先用預設的 700 px 畫，結果把整頁撐寬，手機上就得左右滑。
+ *    加上 min-width: 0 與 max-width: 100%，每一層都不准比螢幕寬，Plotly 就會量到正確寬度。
+ */
+.v-application, .v-application__wrap, .v-main, .v-sheet, .v-row > [class*="v-col"] {
+    min-width: 0;
+    max-width: 100%;
+}
+.js-plotly-plot {
+    max-width: 100%;
+    overflow: hidden;
+}
+
+/* 2. 左右留 12 px 邊距，文字不要貼齊螢幕邊緣。 */
+.solara-content-main {
+    padding-left: 12px !important;
+    padding-right: 12px !important;
+}
+
+/* 3. 螢幕寬度小於 960 px（手機、平板直放）時，地圖改矮一點，比較好往下滑。 */
+@media (max-width: 959px) {
+    .leaflet-widgets {
+        height: 350px !important;
+    }
+}
