@@ -3,15 +3,15 @@
 ## 專案背景
 
 - 這是彰師大地理系「地理資訊系統運用程式」學生的個人 App repo，使用者是正在學習 Python 與 GIS 程式設計的大學部學生。
-- 用 [Solara](https://solara.dev/) 開發網頁 App，在 **GitHub Codespaces** 開發，之後部署到 HuggingFace Spaces（Docker）。
-- 執行方式：`solara run app.py`，預設在 8765 埠。
+- 用 [Solara](https://solara.dev/) 開發網頁 App，在 **GitHub Codespaces** 開發，之後部署到 Render（Docker，免費方案）。
+- 執行方式：`solara run app.py --no-open`，預設在 8765 埠。
 
 ## 檔案結構
 
 - `app.py`：App 主程式。
 - `data/`：App 使用的資料。**唯讀：禁止修改、覆寫、刪除、移動或重新命名。** 要換資料時，由我自己放檔案進來。
 - `requirements.txt`：套件清單，**每個套件都要固定版本**（`套件==版本`）。
-- `Dockerfile`：部署到 HuggingFace Spaces 用。
+- `Dockerfile`：部署到 Render 用。Render 的環境變數 `PORT` 設為 `7860`，與 Dockerfile 的 `--port=7860` 一致。
 - `.devcontainer/`：Codespaces 的環境設定。
 
 ## 程式撰寫規則
@@ -22,7 +22,7 @@
 4. 讀檔放在元件外面，不要每次操作都重新讀檔。
 5. 讀 CSV 時，`sno`、`act` 這類代碼欄位要指定為字串（`dtype={"sno": str, "act": str}`）。
 6. 需要新增套件時，先說明理由並取得我的同意，再寫進 `requirements.txt` 並固定版本。
-7. **API 金鑰、token、密碼不得寫進程式碼或 commit。** 需要時從環境變數讀取（Codespaces secrets、HuggingFace Space Secrets）。
+7. **API 金鑰、token、密碼不得寫進程式碼或 commit。** 需要時從環境變數讀取（Codespaces secrets、Render 的 Environment Variables）。
 
 ## 資料判讀原則
 

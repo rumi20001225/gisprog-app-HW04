@@ -2,12 +2,15 @@
 
 僅供教師批改與示範使用，不發給學生。放進 template repo 取代 app.py，
 並在 requirements.txt 加上 leafmap==0.63.1 即可執行。
-在終端機執行 solara run app.py --no-open
+版面為響應式：螢幕寬 960 px 以上並排，手機上下排列。
+底圖為內政部國土測繪中心的臺灣通用電子地圖（WMTS）。
+在終端機執行：`solara run app.py --no-open`。
 """
 
 import threading
 from pathlib import Path
 
+import ipyleaflet  # leafmap 已一併安裝，不用另外寫進 requirements.txt
 import leafmap.leafmap as leafmap  # ipyleaflet 後端：Solara 原生支援的 widget
 import pandas as pd
 import plotly.express as px
@@ -25,6 +28,14 @@ df = df[df["act"] == "1"]  # 只看營運中的站
 時段 = solara.reactive(時段們[0])
 行政區 = solara.reactive("大安區")
 
+# Solara 會同時服務多個使用者，各自的畫面可能在不同執行緒同時更新。
+# 畫 Plotly 圖表時加鎖，一次只讓一個執行緒畫，避免互相干擾。
+畫圖鎖 = threading.Lock()
+
+# 臺灣通用電子地圖（內政部國土測繪中心 WMTS，GoogleMapsCompatible 圖磚）
+底圖網址 = "https://wmts.nlsc.gov.tw/wmts/EMAP/default/GoogleMapsCompatible/{z}/{y}/{x}"
+底圖出處 = "臺灣通用電子地圖 © 內政部國土測繪中心"
+
 # 可借車數分級：(下限, 上限, 圖例文字, 顏色)。顏色取自 viridis，色盲也分得出深淺。
 分級 = [
     (0, 0, "0 輛（空站）", "#440154"),
@@ -32,18 +43,6 @@ df = df[df["act"] == "1"]  # 只看營運中的站
     (4, 9, "4–9 輛", "#35b779"),
     (10, 999, "10 輛以上", "#fde725"),
 ]
-
-# 底圖：國土測繪中心「臺灣通用電子地圖」。OpenStreetMap 官方圖磚會顯示 Access blocked，所以改用這個。
-底圖 = {
-    "url": "https://wmts.nlsc.gov.tw/wmts/EMAP/default/GoogleMapsCompatible/{z}/{y}/{x}",
-    "attribution": "© 內政部國土測繪中心",
-    "name": "臺灣通用電子地圖",
-    "max_zoom": 20,
-}
-
-# Plotly 的預設樣式是所有使用者共用的，兩個頁面同時畫圖可能互相干擾而出錯。
-# 用這把「鎖」讓圖表一次只畫一張。
-畫圖鎖 = threading.Lock()
 
 
 def 各區空站比例(資料, 門檻值):
@@ -102,13 +101,15 @@ def 站點地圖(區, 時):
         m = leafmap.Map(
             center=[站點["latitude"].mean(), 站點["longitude"].mean()],
             zoom=14,
-            height="500px",
-            basemap=底圖,
+            height="450px",
+            # 用臺灣通用電子地圖取代預設的 OpenStreetMap 底圖
+            basemap=ipyleaflet.TileLayer(url=底圖網址, attribution=底圖出處, max_zoom=19),
             draw_control=False,
             measure_control=False,
             toolbar_control=False,
             search_control=False,
         )
+        m.layers[0].name = "臺灣通用電子地圖"  # leafmap 會把第一個圖層命名為 OpenStreetMap，改回正確名稱
         m.add_geojson(
             轉成GeoJSON(站點),
             layer_name="YouBike 站點",
@@ -132,57 +133,57 @@ def Page():
     solara.Title("YouBike 空站觀察")
     solara.Markdown("# 臺北 YouBike 各區空站比例")
 
-    # 滑桿預設會撐滿整個頁寬，用 Column 限制最大寬度，比較好操作。
-    with solara.Column(style={"max-width": "480px"}):
+    # 響應式版面：寬度 12 是整列。手機上每個元件佔滿一列、上下排；
+    # 螢幕寬度 960 px 以上（medium）才改成並排。
+    with solara.ColumnsResponsive(12, medium=[4, 4, 4]):
         solara.SliderInt("空站門檻：可借車 ≤", value=門檻, min=0, max=5)
-    solara.ToggleButtonsSingle(value=時段, values=時段們)
+        solara.ToggleButtonsSingle(value=時段, values=時段們)
+        solara.Select(label="行政區", value=行政區, values=行政區們)
 
     # 新增：單一行政區的地圖與各時段變化
-    solara.Markdown("## 單一行政區")
-    solara.Select(label="行政區", value=行政區, values=行政區們)
-
-    solara.Markdown(f"**{行政區.value}・{時段.value} 的站點**（點擊站點看站名與可借車數）")
-    站點地圖(行政區.value, 時段.value)
-
-    區表 = 單區各時段(df, 行政區.value, 門檻.value)
-    with 畫圖鎖:
-        區圖 = px.bar(
-            區表,
-            x="時段",
-            y="空站比例",
-            title=f"{行政區.value} 各時段空站比例（可借車 ≤ {門檻.value}，只算營運中的站）",
-        )
-        區圖.update_layout(yaxis_tickformat=".0%")
-    solara.FigurePlotly(區圖)
-    solara.DataFrame(區表)
+    solara.Markdown(f"## {行政區.value}")
+    with solara.ColumnsResponsive(12, medium=[7, 5]):
+        with solara.Column():
+            solara.Markdown(f"**{時段.value} 的站點**（點擊站點看站名與可借車數）")
+            站點地圖(行政區.value, 時段.value)
+        with solara.Column():
+            區表 = 單區各時段(df, 行政區.value, 門檻.value)
+            # 圖表標題放在 Markdown：手機上會自動換行；Plotly 的標題不會換行，會被切掉。
+            solara.Markdown(f"**各時段空站比例**（可借車 ≤ {門檻.value}，只算營運中的站）")
+            with 畫圖鎖:
+                區圖 = px.bar(區表, x="時段", y="空站比例")
+                區圖.update_layout(yaxis_tickformat=".0%", height=300, margin={"l": 10, "r": 10, "t": 10, "b": 10})
+            solara.FigurePlotly(區圖)
+            solara.DataFrame(區表)
 
     # 原本 template 的全市比較
     solara.Markdown("## 各區比較")
     當時 = df[df["時段"] == 時段.value]
     表 = 各區空站比例(當時, 門檻.value)
-
-    with 畫圖鎖:
-        圖 = px.bar(
-            表,
-            x="空站比例",
-            y="sarea",
-            orientation="h",
-            title=f"{時段.value}，可借車 ≤ {門檻.value} 算空站（只算營運中的站）",
-            labels={"sarea": "", "空站比例": "空站比例"},
-        )
-        # 每區給 30 px 高度，行政區名稱才不會被 Plotly 自動隔行省略；換成區數更多的縣市也適用。
-        圖.update_layout(
-            yaxis={"categoryorder": "total ascending"},
-            xaxis_tickformat=".0%",
-            height=150 + 30 * len(表),
-        )
-    solara.FigurePlotly(圖)
-
-    solara.DataFrame(表)
+    with solara.ColumnsResponsive(12, medium=[7, 5]):
+        with solara.Column():
+            solara.Markdown(f"**{時段.value}，可借車 ≤ {門檻.value} 算空站**（只算營運中的站）")
+            with 畫圖鎖:
+                圖 = px.bar(
+                    表,
+                    x="空站比例",
+                    y="sarea",
+                    orientation="h",
+                    labels={"sarea": "", "空站比例": "空站比例"},
+                )
+                # 每區給 30 px 高度，行政區名稱才不會被 Plotly 自動隔行省略；換成區數更多的縣市也適用。
+                圖.update_layout(
+                    yaxis={"categoryorder": "total ascending"},
+                    xaxis_tickformat=".0%",
+                    height=60 + 30 * len(表),
+                    margin={"l": 10, "r": 10, "t": 10, "b": 10},
+                )
+            solara.FigurePlotly(圖)
+        solara.DataFrame(表)
 
     solara.Markdown(
         "資料來源：臺北市 YouBike 2.0 即時資料（臺北市資料大平臺），"
         "依政府資料開放授權條款第 1 版使用。"
         "資料時間：2026-09-25（五）12:28、17:58、23:28。"
-        "底圖：內政部國土測繪中心「臺灣通用電子地圖」，依政府資料開放授權條款第 1 版使用。"
+        "底圖：臺灣通用電子地圖，© 內政部國土測繪中心。"
     )

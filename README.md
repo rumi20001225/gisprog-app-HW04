@@ -11,7 +11,7 @@ license: mit
 
 # 臺北 YouBike 空站觀察
 
-> 上面 `---` 之間的設定是給 HuggingFace Spaces 讀的（W5 部署時使用），請保留。
+> 上面 `---` 之間的設定是給 HuggingFace Spaces 讀的。HF 自 2026 年 7 月起免費帳號不能建立 Docker Space，本課程改用 Render 部署，這段設定 Render 不會讀，保留或刪除都可以。
 
 115-1 地理資訊系統運用程式的 App 範本。選擇時段與空站門檻，查看臺北各區的 YouBike 空站比例。
 
