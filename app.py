@@ -102,8 +102,11 @@ def 站點地圖(區, 時):
             center=[站點["latitude"].mean(), 站點["longitude"].mean()],
             zoom=14,
             height="450px",
-            # 用臺灣通用電子地圖取代預設的 OpenStreetMap 底圖
-            basemap=ipyleaflet.TileLayer(url=底圖網址, attribution=底圖出處, max_zoom=19),
+            # 用臺灣通用電子地圖取代預設的 OpenStreetMap 底圖。
+            # 一定要給 name：leafmap 建地圖時會找「有名稱的圖層」，一個都沒有就會出錯。
+            basemap=ipyleaflet.TileLayer(
+                url=底圖網址, attribution=底圖出處, max_zoom=19, name="臺灣通用電子地圖"
+            ),
             draw_control=False,
             measure_control=False,
             toolbar_control=False,
